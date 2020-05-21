@@ -1,0 +1,204 @@
+---
+title: "Data_Wrangling_HW3_Group3"
+author: "Soumya Halder"
+date: "11/25/2019"
+output: word_document
+---
+
+<br>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# load packages
+library(tidyverse)
+```
+
+Q1) The data set is imported into R which has dimensions of 3142 observations with 35 variables.
+
+```{r q1, message=FALSE, warning=FALSE}
+acs <- read_csv("acs_2015_county_data_revised.csv")
+dim(acs)
+
+```
+
+<br>
+
+Q2) After observing the data types, it is found that except 2 variables - state and county; all are numeric. Hence, all variables have appropriate data types and no further modification is required.
+
+```{r q2, message=FALSE, warning=FALSE}
+glimpse(acs)
+
+```
+
+<br>
+
+Q3) There is only one missing value in coulmns *income* and *child_poverty*. These NAs are in the counties Loving, Texas and Kalawao, Hawaii respectively. Both these counties have extremly low population (~100) when compared to rest of the data. In fact, they have the lowest values for total population. Hence, we can remove these records from our data for analysis. 
+
+```{r q3, message=FALSE, warning=FALSE}
+colSums(is.na(acs))
+acs <- filter(acs, !is.na(acs$income), !is.na(acs$child_poverty))
+```
+
+<br>
+
+Q4) While performing summary statistics for all the columns, the numbers are found to have high variance. But such thing is expected because of population difference between counties. Since we are not aware of the analysis to be performed, there should not be any data manipulation. We can always manipulate the data during analysis to avoid getting biased results as and when required.
+
+```{r q4, message=FALSE, warning=FALSE}
+summary(acs)
+```
+
+<br>
+
+Q5) There are total 1984 counties which has more women population than men.
+
+```{r q5, message=FALSE, warning=FALSE}
+acs %>% 
+  group_by(state, county) %>% 
+  summarize(count1 = sum(women > men, na.rm = T)) %>% 
+  filter(count1 > 0) %>% 
+  n_distinct()
+
+```
+
+<br>
+
+Q6) There are 2419 counties where the unemployment rate is less than 10%.
+
+```{r q6, message=FALSE, warning=FALSE}
+acs %>% 
+  group_by(state, county) %>% 
+  summarize(count1 = sum(unemployment < 10, na.rm = T)) %>%
+  filter(count1 > 0) %>% 
+  n_distinct()
+
+```
+
+Q7) The top 10 counties with highest mean commute are Pike, Bronx, Charles, Warren, Queens, Richmond, Westmoreland, Park, Kings and Clay.
+
+```{r q7, message=FALSE, warning=FALSE}
+acs %>% 
+  select(census_id, county, state, mean_commute) %>% 
+  arrange(desc(mean_commute)) %>% 
+  top_n(10, wt = mean_commute)
+
+```
+
+Q8) The top 10 counties with the lowest percentages of women are Forest, Bent, Sussex, Wheeler, Lassen, Concho, Chattahoochee, Aleutians East Borough, West Feliciana and Pershing.
+
+```{r}
+acs %>% 
+  mutate(perc_women = women/total_pop) %>% 
+  select(census_id, county, state, perc_women) %>% 
+  arrange(perc_women) %>% 
+  top_n(-10, wt = perc_women)
+
+```
+
+<br>
+
+Q9)
+a) The top 10 counties with the lowest sum of race percentage variables (*race_total*) are Hawaii, Maui, Mayes, Honolulu, Pontotoc, Grundy, Yakutat City and Borough, Johnston, Kauai and Alfalfa. The respective states can be found in below results.
+
+```{r q9a, message=FALSE, warning=FALSE}
+acs <- acs %>% 
+  mutate(race_total =  hispanic + white + black + native + asian + pacific) 
+
+acs %>% 
+  arrange(race_total) %>% 
+  top_n(-10, wt = race_total) %>% 
+  select(census_id, county, state, race_total)
+
+```
+
+<br>
+
+b) The state with lowest sum of percentage of race variables is Hawaii with a value of 80.3.
+
+```{r q9b, message=FALSE, warning=FALSE}
+acs %>% 
+  group_by(state) %>% 
+  summarise(mean_race = mean(race_total, na.rm = T)) %>% 
+  slice(which.min(mean_race))
+
+```
+
+<br>
+
+c) There are 11 counties which has *race_total* greater than 100%.
+
+```{r q9c, message=FALSE, warning=FALSE}
+acs %>% 
+  filter(race_total > 100) %>% 
+  select(county, race_total)
+
+```
+
+<br>
+
+d) There are 27 counties which has *race_total* equal to 100%.
+
+```{r q9d, message=FALSE, warning=FALSE}
+acs %>% 
+  filter(race_total == 100) %>% 
+  tally()
+
+```
+
+<br>
+
+Q10)
+a) A new variable *carpool_rank* is created where counties are ranked based on carpool variable.
+
+```{r q10a, message=FALSE, warning=FALSE}
+acs <- acs %>% 
+  mutate(carpool_rank = rank(-carpool, na.last = T, 
+                             ties.method = c("average", "first", "last", "random", "max", "min")))
+```
+
+<br>
+
+b) The 10 highest ranked counties for carpooling are Clay, LaGrange, Jenkins, Sevier, Seward, Cochran, Jim Hogg, Roberts, Holmes and Powell. The respective states can be found in below results.
+
+```{r q10b, message=FALSE, warning=FALSE}
+acs %>% 
+  arrange(carpool_rank) %>% 
+  top_n(-10, wt = carpool_rank) %>% 
+  select(census_id, county, state, carpool, carpool_rank)
+```
+
+<br>
+
+c) The 10 lowest ranked counties for carpooling are Kenedy, King, Irion, Wheeler, New York, Emmons, Daniels, Dundy, Hyde and Norton City. The respective states can be found in below results.
+
+```{r q10c, message=FALSE, warning=FALSE}
+acs %>% 
+  arrange(desc(carpool_rank)) %>% 
+  top_n(10, wt = carpool_rank) %>% 
+  select(census_id, county, state, carpool, carpool_rank)
+```
+
+<br>
+
+d) Hawaii is best ranked for carpooling.
+
+```{r q10d, message=FALSE, warning=FALSE}
+acs %>% 
+  group_by(state) %>% 
+  summarize(mean_carpool = mean(carpool)) %>%
+  mutate(carpool_rank_state = min_rank(-mean_carpool)) %>% 
+  arrange(carpool_rank_state) 
+```
+
+<br>
+
+e) The top 5 states for carpooling are California, Texas, Florida, New York and Pennsylvania.
+
+```{r q10e, message=FALSE, warning=FALSE}
+acs %>% 
+  group_by(state) %>% 
+  summarise(total_state = sum(carpool * total_pop, na.rm = T)) %>% 
+  top_n(5, wt = total_state) %>% 
+  arrange(desc(total_state))
+```
+
